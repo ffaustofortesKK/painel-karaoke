@@ -2,16 +2,18 @@ import streamlit as st
 from supabase import create_client
 
 # --- CONFIGURAÇÃO ---
-# No Streamlit Cloud, vá em Settings -> Secrets e coloque:
-# URL_SUPABASE = "sua_url_aqui"
-# KEY_SUPABASE = "sua_chave_aqui"
+# No Streamlit Cloud, em Settings -> Secrets, você deve ter:
+# URL_SUPABASE = "https://woblqkukbooyezvwtukb.supabase.co"
+# KEY_SUPABASE = "SUA_CHAVE_ANON_AQUI"
 
 try:
-    url = st.secrets["https://woblqkukbooyezvwtukb.supabase.co/rest/v1"]
-    key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvYmxxa3VrYm9veWV6dnd0dWtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NDgxMjQsImV4cCI6MjA5OTQyNDEyNH0.MHI5jPWrUnnrO0dxCCfq4O_pD2kxUMZOEbVbcf8MK9c"]
+    # Acessa os nomes definidos no painel Secrets do Streamlit
+    url = st.secrets["URL_SUPABASE"]
+    key = st.secrets["KEY_SUPABASE"]
     supabase = create_client(url, key)
-except:
-    st.error("Configurações de segredos (secrets) não encontradas no Streamlit.")
+except Exception as e:
+    st.error(f"Erro ao carregar configurações: {e}")
+    st.stop()
 
 st.set_page_config(page_title="Painel de Administração")
 st.title("🛡️ Painel de Controle")
@@ -23,7 +25,7 @@ if "logado" not in st.session_state:
 if not st.session_state["logado"]:
     senha = st.text_input("Digite a senha de administrador:", type="password")
     if st.button("Entrar"):
-        if senha == "1234": # Mude a senha aqui
+        if senha == "1234":
             st.session_state["logado"] = True
             st.rerun()
         else:
@@ -33,22 +35,25 @@ else:
     st.write("Conectado ao Banco de Dados.")
     
     # Buscar prestadores
-    response = supabase.table("prestadores").select("*").execute()
-    prestadores = response.data
-    
-    if not prestadores:
-        st.write("Nenhum prestador cadastrado.")
-    else:
-        for p in prestadores:
-            col1, col2 = st.columns([3, 1])
-            col1.write(f"**Prestador:** {p['nome_prestador']} | **Ref:** {p['referencia_pagamento']}")
-            
-            # Botão de status
-            status = p['status_pagamento']
-            if col2.button("Sim" if status else "Não", key=str(p['id'])):
-                novo_status = not status
-                supabase.table("prestadores").update({"status_pagamento": novo_status}).eq("id", p['id']).execute()
-                st.rerun()
+    try:
+        response = supabase.table("prestadores").select("*").execute()
+        prestadores = response.data
+        
+        if not prestadores:
+            st.write("Nenhum prestador cadastrado.")
+        else:
+            for p in prestadores:
+                col1, col2 = st.columns([3, 1])
+                col1.write(f"**Prestador:** {p['nome_prestador']} | **Ref:** {p['referencia_pagamento']}")
+                
+                # Botão de status
+                status = p['status_pagamento']
+                if col2.button("Sim" if status else "Não", key=str(p['id'])):
+                    novo_status = not status
+                    supabase.table("prestadores").update({"status_pagamento": novo_status}).eq("id", p['id']).execute()
+                    st.rerun()
+    except Exception as e:
+        st.error(f"Erro ao buscar ou atualizar dados: {e}")
     
     if st.button("Sair"):
         st.session_state["logado"] = False
