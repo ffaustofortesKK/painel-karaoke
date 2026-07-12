@@ -7,8 +7,8 @@ from supabase import create_client
 # KEY_SUPABASE = "sua_chave_aqui"
 
 try:
-    url = st.secrets["URL_SUPABASE"]
-    key = st.secrets["KEY_SUPABASE"]
+    url = st.secrets["https://woblqkukbooyezvwtukb.supabase.co/rest/v1"]
+    key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvYmxxa3VrYm9veWV6dnd0dWtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NDgxMjQsImV4cCI6MjA5OTQyNDEyNH0.MHI5jPWrUnnrO0dxCCfq4O_pD2kxUMZOEbVbcf8MK9c"]
     supabase = create_client(url, key)
 except:
     st.error("Configurações de segredos (secrets) não encontradas no Streamlit.")
