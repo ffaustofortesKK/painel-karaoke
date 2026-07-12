@@ -8,13 +8,13 @@ url = st.secrets["URL_SUPABASE"]
 key = st.secrets["KEY_SUPABASE"]
 supabase = create_client(url, key)
 
-# Atualiza a página automaticamente a cada 1000ms (1 segundo)
+# Atualiza a página automaticamente a cada 1 segundo
 st_autorefresh(interval=1000, key="datarefresh")
 
 st.set_page_config(page_title="Painel de Administração", layout="wide")
 st.title("🛡️ Painel de Controle em Tempo Real")
 
-# --- LOGIN (Simplificado) ---
+# --- LOGIN ---
 if "logado" not in st.session_state: st.session_state["logado"] = False
 
 if not st.session_state["logado"]:
@@ -23,13 +23,40 @@ if not st.session_state["logado"]:
         st.session_state["logado"] = True
         st.rerun()
 else:
-    # Buscar dados
-    response = supabase.table("prestadores").select("*").execute()
-    prestadores = response.data
+    if st.button("Sair"):
+        st.session_state["logado"] = False
+        st.rerun()
 
-    # Tabela
+    # --- SEÇÃO 1: PEDIDOS WEB PENDENTES ---
+    st.subheader("📥 Pedidos Web Recebidos")
+    pedidos_pendentes = supabase.table("pedidos_pendentes").select("*").eq("status", "pendente").execute().data
+    
+    if pedidos_pendentes:
+        for p in pedidos_pendentes:
+            col_a, col_b = st.columns([4, 1])
+            col_a.write(f"🎤 **{p['cantor']}** - 🎵 {p['musica']}")
+            if col_b.button("Aprovar", key=f"aprove_{p['id']}"):
+                # Adiciona na tabela oficial de prestadores
+                supabase.table("prestadores").insert({
+                    "nome_prestador": p['cantor'],
+                    "referencia_pagamento": p['musica'],
+                    "status_pagamento": False
+                }).execute()
+                # Remove da lista de pendentes
+                supabase.table("pedidos_pendentes").delete().eq("id", p['id']).execute()
+                st.rerun()
+    else:
+        st.info("Nenhum pedido novo no momento.")
+
+    st.divider()
+
+    # --- SEÇÃO 2: FILA DE PRESTADORES ATIVOS ---
+    st.subheader("🎤 Fila de Prestadores")
+    prestadores = supabase.table("prestadores").select("*").execute().data
+
+    # Cabeçalho da Tabela
     c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
-    c1.write("**Prestador**"); c2.write("**Referência**")
+    c1.write("**Prestador**"); c2.write("**Referência/Música**")
     c3.write("**Pagamento**"); c4.write("**Tempo Restante**")
 
     for p in prestadores:
@@ -50,7 +77,6 @@ else:
                 col3.write("✅ SIM")
                 col4.write(f"⏳ {m:02d}m {s:02d}s")
             else:
-                # Expira automaticamente
                 supabase.table("prestadores").update({"status_pagamento": False, "inicio_servico": None}).eq("id", p['id']).execute()
                 st.rerun()
         else:
