@@ -1,60 +1,55 @@
 import streamlit as st
 from supabase import create_client
+from datetime import datetime, timedelta, timezone
 
-# --- CONFIGURAÇÃO ---
-# No Streamlit Cloud, em Settings -> Secrets, você deve ter:
-# URL_SUPABASE = "https://woblqkukbooyezvwtukb.supabase.co"
-# KEY_SUPABASE = "SUA_CHAVE_ANON_AQUI"
-
-try:
-    # Acessa os nomes definidos no painel Secrets do Streamlit
-    url = st.secrets["URL_SUPABASE"]
-    key = st.secrets["KEY_SUPABASE"]
-    supabase = create_client(url, key)
-except Exception as e:
-    st.error(f"Erro ao carregar configurações: {e}")
-    st.stop()
+# Configuração
+url = st.secrets["URL_SUPABASE"]
+key = st.secrets["KEY_SUPABASE"]
+supabase = create_client(url, key)
 
 st.set_page_config(page_title="Painel de Administração")
 st.title("🛡️ Painel de Controle")
 
-# --- LOGIN ---
-if "logado" not in st.session_state:
-    st.session_state["logado"] = False
+if "logado" not in st.session_state: st.session_state["logado"] = False
 
 if not st.session_state["logado"]:
-    senha = st.text_input("Digite a senha de administrador:", type="password")
-    if st.button("Entrar"):
-        if senha == "1234":
-            st.session_state["logado"] = True
-            st.rerun()
-        else:
-            st.error("Senha incorreta!")
+    senha = st.text_input("Senha:", type="password")
+    if st.button("Entrar") and senha == "1234":
+        st.session_state["logado"] = True
+        st.rerun()
 else:
-    # --- PAINEL PRINCIPAL ---
-    st.write("Conectado ao Banco de Dados.")
-    
-    # Buscar prestadores
-    try:
-        response = supabase.table("prestadores").select("*").execute()
-        prestadores = response.data
-        
-        if not prestadores:
-            st.write("Nenhum prestador cadastrado.")
-        else:
-            for p in prestadores:
-                col1, col2 = st.columns([3, 1])
-                col1.write(f"**Prestador:** {p['nome_prestador']} | **Ref:** {p['referencia_pagamento']}")
-                
-                # Botão de status
-                status = p['status_pagamento']
-                if col2.button("Sim" if status else "Não", key=str(p['id'])):
-                    novo_status = not status
-                    supabase.table("prestadores").update({"status_pagamento": novo_status}).eq("id", p['id']).execute()
-                    st.rerun()
-    except Exception as e:
-        st.error(f"Erro ao buscar ou atualizar dados: {e}")
-    
     if st.button("Sair"):
         st.session_state["logado"] = False
         st.rerun()
+
+    response = supabase.table("prestadores").select("*").execute()
+    prestadores = response.data
+
+    for p in prestadores:
+        col1, col2, col3 = st.columns([2, 1, 1])
+        col1.write(f"**{p['nome_prestador']}**")
+        
+        status = p['status_pagamento']
+        inicio_str = p.get('inicio_servico')
+        
+        # Lógica do Cronômetro
+        if status and inicio_str:
+            inicio = datetime.fromisoformat(inicio_str.replace('Z', '+00:00'))
+            agora = datetime.now(timezone.utc)
+            decorrido = (agora - inicio).total_seconds()
+            restante = 7200 - decorrido # 7200 segundos = 2h
+
+            if restante > 0:
+                col2.write(f"⏳ {int(restante//60)}m {int(restante%60)}s")
+                col3.button("Pagar", key=f"d_{p['id']}", disabled=True)
+            else:
+                # Tempo esgotado: fecha automaticamente
+                supabase.table("prestadores").update({"status_pagamento": False, "inicio_servico": None}).eq("id", p['id']).execute()
+                st.rerun()
+        else:
+            col2.write("---")
+            if col3.button("Pagar", key=f"a_{p['id']}"):
+                # Inicia o tempo agora
+                agora_iso = datetime.now(timezone.utc).isoformat()
+                supabase.table("prestadores").update({"status_pagamento": True, "inicio_servico": agora_iso}).eq("id", p['id']).execute()
+                st.rerun()
