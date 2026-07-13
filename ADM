@@ -36,16 +36,15 @@ try:
     if pedidos:
         for p in pedidos:
             col_a, col_b = st.columns([4, 1])
-            # Assume-se que o campo 'cantor' no pedido contém o nome completo
             col_a.write(f"🎤 **{p.get('cantor', 'Sem nome')}** - 🎵 {p.get('musica', 'Sem nome')}")
             
             if col_b.button("Aprovar", key=f"aprove_{p['id']}"):
                 slug = p['cantor'].lower().replace(" ", "-")
                 
-                # Inserção ajustada para as suas colunas exatas (Nome e sobrenomo)
+                # Inserção ajustada para a nova coluna 'sobrenome'
                 supabase.table("prestadores").insert({
-                    "Nome": p['cantor'], # Coluna exata com 'N' maiúsculo
-                    "sobrenomo": "",     # Adicionado campo obrigatório para não dar erro
+                    "Nome": p['cantor'], 
+                    "sobrenome": "",     # Corrigido para 'sobrenome'
                     "referencia_pagamento": p['musica'],
                     "status_pagamento": False,
                     "slug_unico": slug
@@ -74,8 +73,8 @@ try:
 
         for p in prestadores:
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
-            # Exibe Nome e sobrenomo juntos
-            nome_completo = f"{p.get('Nome', '')} {p.get('sobrenomo', '')}".strip()
+            # Exibe Nome e sobrenome corrigidos
+            nome_completo = f"{p.get('Nome', '')} {p.get('sobrenome', '')}".strip()
             col1.write(nome_completo) 
             col2.write(p.get('referencia_pagamento', ''))
             
