@@ -41,10 +41,10 @@ try:
             if col_b.button("Aprovar", key=f"aprove_{p['id']}"):
                 slug = p['cantor'].lower().replace(" ", "-")
                 
-                # Inserção ajustada para a coluna 'sobrenome'
+                # Inserção ajustada para 'Sobrenome'
                 supabase.table("prestadores").insert({
                     "Nome": p['cantor'], 
-                    "sobrenome": "",    
+                    "Sobrenome": "",    # Alterado para 'Sobrenome' com 'S' maiúsculo
                     "referencia_pagamento": p['musica'],
                     "status_pagamento": False,
                     "slug_unico": slug
@@ -73,8 +73,8 @@ try:
 
         for p in prestadores:
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
-            # Exibe Nome e sobrenome corrigidos
-            nome_completo = f"{p.get('Nome', '')} {p.get('sobrenome', '')}".strip()
+            # Exibe Nome e Sobrenome (usando chaves com maiúsculas)
+            nome_completo = f"{p.get('Nome', '')} {p.get('Sobrenome', '')}".strip()
             col1.write(nome_completo) 
             col2.write(p.get('referencia_pagamento', ''))
             
