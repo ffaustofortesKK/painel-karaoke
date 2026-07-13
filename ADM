@@ -41,10 +41,10 @@ try:
             if col_b.button("Aprovar", key=f"aprove_{p['id']}"):
                 slug = p['cantor'].lower().replace(" ", "-")
                 
-                # Inserção ajustada para a nova coluna 'sobrenome'
+                # Inserção ajustada para a coluna 'sobrenome'
                 supabase.table("prestadores").insert({
                     "Nome": p['cantor'], 
-                    "sobrenome": "",     # Corrigido para 'sobrenome'
+                    "sobrenome": "",    
                     "referencia_pagamento": p['musica'],
                     "status_pagamento": False,
                     "slug_unico": slug
