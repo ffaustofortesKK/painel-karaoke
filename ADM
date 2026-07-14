@@ -41,11 +41,11 @@ try:
             if col_b.button("Aprovar", key=f"aprove_{p['id']}"):
                 slug = p['cantor'].lower().replace(" ", "-")
                 
-                # Inserção usando chaves em minúsculas (exatamente como no seu banco)
+                # Inserção explícita usando 'nome' e 'sobrenome' (conforme sua tabela)
                 supabase.table("prestadores").insert({
-                    "nome": p['cantor'], 
-                    "sobrenome": "",    
-                    "referencia_pagamento": p['musica'],
+                    "nome": p.get('cantor', ''), 
+                    "sobrenome": '', 
+                    "referencia_pagamento": p.get('musica', ''),
                     "status_pagamento": False,
                     "slug_unico": slug
                 }).execute()
@@ -68,24 +68,19 @@ if st.button("🔄 Atualizar Fila"):
 try:
     # Busca prestadores
     prestadores = supabase.table("prestadores").select("*").execute().data
+    
     if prestadores:
         header1, header2, header3, header4 = st.columns([2, 2, 1, 1])
-        header1.write("**Prestador**"); header2.write("**Ref.**"); header3.write("**Status**"); header4.write("**Ação**")
+        header1.write("**Prestador (Nome/Slug)**"); header2.write("**Ref.**"); header3.write("**Status**"); header4.write("**Ação**")
 
         for p in prestadores:
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
             
-            # Leitura direta das colunas do banco (minúsculas)
-            nome_b = p.get('nome') or ""
-            sobrenome_b = p.get('sobrenome') or ""
+            # Tenta pegar o nome salvo no banco, se não existir, usa o slug como fallback
+            nome_exibido = p.get('nome') if p.get('nome') else p.get('slug_unico', 'Sem Nome')
+            sobrenome_exibido = p.get('sobrenome', '')
             
-            # Se nome e sobrenome estiverem vazios, exibe o slug_unico como identificador
-            if not nome_b and not sobrenome_b:
-                display_nome = p.get('slug_unico', f"ID: {p.get('id')}")
-            else:
-                display_nome = f"{nome_b} {sobrenome_b}".strip()
-            
-            col1.write(display_nome) 
+            col1.write(f"{nome_exibido} {sobrenome_exibido}".strip())
             col2.write(str(p.get('referencia_pagamento', '')))
             
             status = p.get('status_pagamento', False)
