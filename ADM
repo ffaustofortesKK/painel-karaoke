@@ -1,13 +1,14 @@
-# --- SEÇÃO 2: FILA DE PRESTADORES (COM DEPURADOR ATIVO) ---
-st.subheader("🎤 Fila de Prestadores")
-
-try:
-    # Busca os dados
-    prestadores = supabase.table("prestadores").select("*").execute().data
-    
-    if prestadores:
-        # --- AQUI ESTÁ O TRUQUE ---
-        st.write("Dados recebidos do Supabase (para depurar):")
-        st.json(prestadores) # Isso vai mostrar TUDO o que o Supabase entregou
-        
-        # ... (seu restante código abaixo) ...
+for index, p in enumerate(prestadores):
+            col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
+            
+            # Usar o ID do banco + o índice do loop garante uma chave 100% única
+            unique_key = f"btn_{p.get('id')}_{index}"
+            
+            # ... (seu código de exibição) ...
+            
+            if col4.button("Pagar", key=unique_key):
+                supabase.table("prestadores").update({
+                    "status_pagamento": True,
+                    "inicio_servico": datetime.now(timezone.utc).isoformat()
+                }).eq("id", p.get('id')).execute()
+                st.rerun()
