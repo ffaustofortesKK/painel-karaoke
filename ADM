@@ -25,7 +25,7 @@ if st.button("🔄 Atualizar Fila"):
     st.rerun()
 
 try:
-    # A consulta está correta, busca todos os dados
+    # Busca os dados do Supabase
     prestadores = supabase.table("prestadores").select("*").execute().data
     
     if prestadores:
@@ -38,29 +38,33 @@ try:
         for p in prestadores:
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
             
-            # --- CORREÇÃO AQUI ---
-            # O Supabase retorna chaves sensíveis a maiúsculas. 
-            # Vamos tentar ler das duas formas possíveis.
+            # --- DEPURAÇÃO (Se aparecerem dados estranhos na tela, o problema é o Supabase) ---
+            # st.write(p) # Descomente esta linha se ainda não aparecer nada para ver o que vem do banco
+
+            # Tenta ler as chaves conforme aparecem no seu esquema
             nome_val = p.get('Nome') or p.get('nome') or ""
             sobrenome_val = p.get('Sobrenome') or p.get('sobrenome') or ""
             
-            # Concatena nome e sobrenome
             nome_completo = f"{nome_val} {sobrenome_val}".strip()
-            
-            # Se ainda estiver vazio, cai num fallback (mostra o slug ou ID)
             display_name = nome_completo if nome_completo else (p.get('slug_unico') or f"ID: {p.get('id')}")
             
             col1.write(f"**{display_name}**")
-            col2.write(str(p.get('referencia_pagamento', 'N/A')))
+            col2.write(str(p.get('referencia_pagamento') or "N/A"))
             
-            # ... o restante do seu código de status permanece igual ...
             status = p.get('status_pagamento', False)
             if status:
                 col3.write("✅ SIM")
+                inicio_str = p.get('inicio_servico')
+                if inicio_str:
+                    col4.write("⏳ Em uso")
             else:
                 col3.write("❌ NÃO")
+                # Lógica funcional do botão Pagar
                 if col4.button("Pagar", key=f"btn_{p.get('id')}"):
-                    # Lógica de atualização
+                    supabase.table("prestadores").update({
+                        "status_pagamento": True,
+                        "inicio_servico": datetime.now(timezone.utc).isoformat()
+                    }).eq("id", p.get('id')).execute()
                     st.rerun()
     else:
         st.write("Nenhum prestador cadastrado.")
