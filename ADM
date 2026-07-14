@@ -2,7 +2,7 @@ import streamlit as st
 from supabase import create_client
 from datetime import datetime, timezone
 
-# Configuração
+# --- Configuração ---
 url = st.secrets["URL_SUPABASE"]
 key = st.secrets["KEY_SUPABASE"]
 supabase = create_client(url, key)
@@ -19,24 +19,14 @@ if not st.session_state["logado"]:
         st.rerun()
     st.stop()
 
-# --- FUNÇÃO DE PAGAMENTO ---
-def processar_pagamento(prestador_id):
-    """Executa a atualização no Supabase."""
-    try:
-        supabase.table("prestadores").update({
-            "status_pagamento": True,
-            "inicio_servico": datetime.now(timezone.utc).isoformat()
-        }).eq("id", prestador_id).execute()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao atualizar: {e}")
-        return False
-
-# --- SEÇÃO 2: FILA DE PRESTADORES ---
+# --- SEÇÃO: FILA DE PRESTADORES ---
 st.subheader("🎤 Fila de Prestadores")
 
+if st.button("🔄 Atualizar"):
+    st.rerun()
+
 try:
-    # Busca dados
+    # Busca todos os dados da tabela prestadores
     prestadores = supabase.table("prestadores").select("*").execute().data
     
     if prestadores:
@@ -47,26 +37,37 @@ try:
         header4.write("**Ação**")
 
         for p in prestadores:
-            p_id = p.get('id')
+            # BLOCO DE DEBUG (Isso vai mostrar se os nomes estão a chegar)
+            # st.write(f"DEBUG: {p}") 
+            
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
             
-            # Formatação segura de nome
-            nome = str(p.get('Nome') or p.get('nome') or "")
-            sobrenome = str(p.get('Sobrenome') or p.get('sobrenome') or "")
-            display_name = f"{nome} {sobrenome}".strip() or p.get('slug_unico') or "Sem Nome"
+            # Tenta pegar Nome e Sobrenome de várias formas possíveis (maiúsculo/minúsculo)
+            n = p.get('Nome') or p.get('nome') or ""
+            s = p.get('Sobrenome') or p.get('sobrenome') or ""
             
-            col1.write(f"**{display_name}**")
+            # Se tiver nome ou sobrenome, junta. Se não, tenta o slug_unico
+            display = f"{n} {s}".strip()
+            if not display:
+                display = p.get('slug_unico') or "Sem Nome"
+            
+            col1.write(f"**{display}**")
             col2.write(str(p.get('referencia_pagamento') or "N/A"))
             
+            # Status e Pagamento
             if p.get('status_pagamento'):
                 col3.write("✅ SIM")
                 col4.write("⏳ Em uso")
             else:
                 col3.write("❌ NÃO")
-                # Botão com chave única baseada no ID
-                if col4.button("Pagar", key=f"pagar_{p_id}"):
-                    if processar_pagamento(p_id):
-                        st.rerun() # O rerun aqui é seguro porque a função terminou
+                # Botão com KEY ÚNICA para evitar erro de 'removeChild'
+                btn_id = p.get('id')
+                if btn_id and col4.button("Pagar", key=f"pagar_{btn_id}"):
+                    supabase.table("prestadores").update({
+                        "status_pagamento": True,
+                        "inicio_servico": datetime.now(timezone.utc).isoformat()
+                    }).eq("id", btn_id).execute()
+                    st.rerun()
     else:
         st.info("Nenhum prestador na fila.")
         
