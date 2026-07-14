@@ -1,14 +1,49 @@
-for index, p in enumerate(prestadores):
+# --- SEÇÃO 2: FILA DE PRESTADORES ---
+st.subheader("🎤 Fila de Prestadores")
+if st.button("🔄 Atualizar Fila"):
+    st.rerun()
+
+try:
+    prestadores = supabase.table("prestadores").select("*").execute().data
+    
+    if prestadores:
+        header1, header2, header3, header4 = st.columns([2, 2, 1, 1])
+        header1.write("**Prestador**")
+        header2.write("**Ref.**")
+        header3.write("**Status**")
+        header4.write("**Ação**")
+
+        # Usamos enumerate para ter o 'index' e criar chaves únicas
+        for index, p in enumerate(prestadores):
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
             
-            # Usar o ID do banco + o índice do loop garante uma chave 100% única
-            unique_key = f"btn_{p.get('id')}_{index}"
+            # Lógica de Nome (Lê 'Nome' ou 'nome')
+            nome_val = p.get('Nome') or p.get('nome') or ""
+            sobrenome_val = p.get('Sobrenome') or p.get('sobrenome') or ""
+            nome_completo = f"{nome_val} {sobrenome_val}".strip()
+            display_name = nome_completo if nome_completo else (p.get('slug_unico') or f"ID: {p.get('id')}")
             
-            # ... (seu código de exibição) ...
+            col1.write(f"**{display_name}**")
+            col2.write(str(p.get('referencia_pagamento') or "N/A"))
             
-            if col4.button("Pagar", key=unique_key):
-                supabase.table("prestadores").update({
-                    "status_pagamento": True,
-                    "inicio_servico": datetime.now(timezone.utc).isoformat()
-                }).eq("id", p.get('id')).execute()
-                st.rerun()
+            status = p.get('status_pagamento', False)
+            if status:
+                col3.write("✅ SIM")
+                if p.get('inicio_servico'):
+                    col4.write("⏳ Em uso")
+            else:
+                col3.write("❌ NÃO")
+                
+                # A chave única impede o erro de 'removeChild'
+                unique_key = f"btn_{p.get('id')}_{index}"
+                
+                if col4.button("Pagar", key=unique_key):
+                    supabase.table("prestadores").update({
+                        "status_pagamento": True,
+                        "inicio_servico": datetime.now(timezone.utc).isoformat()
+                    }).eq("id", p.get('id')).execute()
+                    st.rerun()
+    else:
+        st.write("Nenhum prestador cadastrado.")
+except Exception as e:
+    st.error(f"Erro ao buscar prestadores: {e}")
