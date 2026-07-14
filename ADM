@@ -41,11 +41,11 @@ try:
             if col_b.button("Aprovar", key=f"aprove_{p['id']}"):
                 slug = p['cantor'].lower().replace(" ", "-")
                 
-                # Inserção explícita usando 'nome' e 'sobrenome' (conforme sua tabela)
+                # Inserção no banco
                 supabase.table("prestadores").insert({
-                    "nome": p.get('cantor', ''), 
-                    "sobrenome": '', 
-                    "referencia_pagamento": p.get('musica', ''),
+                    "nome": p['cantor'], 
+                    "sobrenome": "",    
+                    "referencia_pagamento": p['musica'],
                     "status_pagamento": False,
                     "slug_unico": slug
                 }).execute()
@@ -66,21 +66,28 @@ if st.button("🔄 Atualizar Fila"):
     st.rerun()
 
 try:
-    # Busca prestadores
     prestadores = supabase.table("prestadores").select("*").execute().data
-    
     if prestadores:
+        # Cabeçalhos
         header1, header2, header3, header4 = st.columns([2, 2, 1, 1])
-        header1.write("**Prestador (Nome/Slug)**"); header2.write("**Ref.**"); header3.write("**Status**"); header4.write("**Ação**")
+        header1.write("**Prestador (Nome)**")
+        header2.write("**Ref.**")
+        header3.write("**Status**")
+        header4.write("**Ação**")
 
         for p in prestadores:
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
             
-            # Tenta pegar o nome salvo no banco, se não existir, usa o slug como fallback
-            nome_exibido = p.get('nome') if p.get('nome') else p.get('slug_unico', 'Sem Nome')
-            sobrenome_exibido = p.get('sobrenome', '')
+            # Busca o nome no banco (priorizando a coluna 'nome')
+            nome_banco = p.get('nome') if p.get('nome') else ""
+            slug_banco = p.get('slug_unico') if p.get('slug_unico') else ""
             
-            col1.write(f"{nome_exibido} {sobrenome_exibido}".strip())
+            # Exibe o Nome. Se estiver vazio, exibe o Slug para ajudar na identificação
+            if nome_banco:
+                col1.write(f"**{nome_banco}**")
+            else:
+                col1.write(f"*{slug_banco}*")
+                
             col2.write(str(p.get('referencia_pagamento', '')))
             
             status = p.get('status_pagamento', False)
@@ -89,10 +96,13 @@ try:
                 col3.write("✅ PAGO")
                 inicio_str = p.get('inicio_servico')
                 if inicio_str:
-                    inicio = datetime.fromisoformat(inicio_str.replace('Z', '+00:00'))
-                    agora = datetime.now(timezone.utc)
-                    restante = 7200 - (agora - inicio).total_seconds()
-                    col4.write(f"⏳ {max(0, int(restante)//60)}m")
+                    try:
+                        inicio = datetime.fromisoformat(inicio_str.replace('Z', '+00:00'))
+                        agora = datetime.now(timezone.utc)
+                        restante = 7200 - (agora - inicio).total_seconds()
+                        col4.write(f"⏳ {max(0, int(restante)//60)}m")
+                    except:
+                        col4.write("---")
             else:
                 col3.write("❌ PENDENTE")
                 if col4.button("Confirmar Pagamento", key=f"btn_{p['id']}"):
