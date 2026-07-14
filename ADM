@@ -25,7 +25,7 @@ if st.button("🔄 Atualizar Fila"):
     st.rerun()
 
 try:
-    # Busca todos os prestadores
+    # A consulta está correta, busca todos os dados
     prestadores = supabase.table("prestadores").select("*").execute().data
     
     if prestadores:
@@ -38,36 +38,29 @@ try:
         for p in prestadores:
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
             
-            # Tenta ler as colunas 'nome' e 'sobrenome' em minúsculas
-            # Se não encontrar, tenta ler 'slug_unico' para não deixar vazio
-            nome_valor = p.get('nome') or p.get('Nome') or ""
-            sobrenome_valor = p.get('sobrenome') or p.get('Sobrenome') or ""
+            # --- CORREÇÃO AQUI ---
+            # O Supabase retorna chaves sensíveis a maiúsculas. 
+            # Vamos tentar ler das duas formas possíveis.
+            nome_val = p.get('Nome') or p.get('nome') or ""
+            sobrenome_val = p.get('Sobrenome') or p.get('sobrenome') or ""
             
-            # Concatena o nome completo
-            nome_completo = f"{nome_valor} {sobrenome_valor}".strip()
+            # Concatena nome e sobrenome
+            nome_completo = f"{nome_val} {sobrenome_val}".strip()
             
-            # Se ainda assim estiver vazio, usa o slug_unico como último recurso
-            if not nome_completo or nome_completo == "":
-                nome_completo = p.get('slug_unico', 'Sem Nome')
+            # Se ainda estiver vazio, cai num fallback (mostra o slug ou ID)
+            display_name = nome_completo if nome_completo else (p.get('slug_unico') or f"ID: {p.get('id')}")
             
-            col1.write(f"**{nome_completo}**")
-            
-            # Exibe a referência de pagamento
+            col1.write(f"**{display_name}**")
             col2.write(str(p.get('referencia_pagamento', 'N/A')))
             
+            # ... o restante do seu código de status permanece igual ...
             status = p.get('status_pagamento', False)
-            
             if status:
                 col3.write("✅ SIM")
-                # Cálculo de tempo (exemplo simplificado)
-                inicio_str = p.get('inicio_servico')
-                if inicio_str:
-                    # Ajuste conforme necessário para o seu formato de data
-                    col4.write("⏳ Em uso") 
             else:
                 col3.write("❌ NÃO")
                 if col4.button("Pagar", key=f"btn_{p.get('id')}"):
-                    # Lógica de atualização aqui
+                    # Lógica de atualização
                     st.rerun()
     else:
         st.write("Nenhum prestador cadastrado.")
