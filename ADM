@@ -1,9 +1,31 @@
+import streamlit as st
+from supabase import create_client
+from datetime import datetime, timezone
+
+# Configuração
+url = st.secrets["URL_SUPABASE"]
+key = st.secrets["KEY_SUPABASE"]
+supabase = create_client(url, key)
+
+st.set_page_config(page_title="Painel de Administração", layout="wide")
+st.title("🛡️ Painel de Controle")
+
+# --- LOGIN ---
+if "logado" not in st.session_state: st.session_state["logado"] = False
+if not st.session_state["logado"]:
+    senha = st.text_input("Senha:", type="password")
+    if st.button("Entrar") and senha == "1234":
+        st.session_state["logado"] = True
+        st.rerun()
+    st.stop()
+
 # --- SEÇÃO 2: FILA DE PRESTADORES ---
 st.subheader("🎤 Fila de Prestadores")
 if st.button("🔄 Atualizar Fila"):
     st.rerun()
 
 try:
+    # Busca os dados do Supabase
     prestadores = supabase.table("prestadores").select("*").execute().data
     
     if prestadores:
@@ -13,13 +35,16 @@ try:
         header3.write("**Status**")
         header4.write("**Ação**")
 
-        # Usamos enumerate para ter o 'index' e criar chaves únicas
-        for index, p in enumerate(prestadores):
+        for p in prestadores:
             col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
             
-            # Lógica de Nome (Lê 'Nome' ou 'nome')
+            # --- DEPURAÇÃO (Se aparecerem dados estranhos na tela, o problema é o Supabase) ---
+            # st.write(p) # Descomente esta linha se ainda não aparecer nada para ver o que vem do banco
+
+            # Tenta ler as chaves conforme aparecem no seu esquema
             nome_val = p.get('Nome') or p.get('nome') or ""
             sobrenome_val = p.get('Sobrenome') or p.get('sobrenome') or ""
+            
             nome_completo = f"{nome_val} {sobrenome_val}".strip()
             display_name = nome_completo if nome_completo else (p.get('slug_unico') or f"ID: {p.get('id')}")
             
@@ -29,15 +54,13 @@ try:
             status = p.get('status_pagamento', False)
             if status:
                 col3.write("✅ SIM")
-                if p.get('inicio_servico'):
+                inicio_str = p.get('inicio_servico')
+                if inicio_str:
                     col4.write("⏳ Em uso")
             else:
                 col3.write("❌ NÃO")
-                
-                # A chave única impede o erro de 'removeChild'
-                unique_key = f"btn_{p.get('id')}_{index}"
-                
-                if col4.button("Pagar", key=unique_key):
+                # Lógica funcional do botão Pagar
+                if col4.button("Pagar", key=f"btn_{p.get('id')}"):
                     supabase.table("prestadores").update({
                         "status_pagamento": True,
                         "inicio_servico": datetime.now(timezone.utc).isoformat()
