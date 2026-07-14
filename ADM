@@ -29,7 +29,7 @@ try:
     if prestadores:
         header1, header2, header3, header4 = st.columns([2, 2, 1, 1])
         header1.write("**Prestador**")
-        header2.write("**Nome**")
+        header2.write("**Ref**")
         header3.write("**Status**")
         header4.write("**Ação**")
 
