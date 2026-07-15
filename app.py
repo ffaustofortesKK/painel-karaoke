@@ -1,14 +1,11 @@
 import streamlit as st
-from supabase import create_client
-from datetime import datetime, timezone
-
-# --- Configuração ---
-url = st.secrets["URL_SUPABASE"]
-key = st.secrets["KEY_SUPABASE"]
-supabase = create_client(url, key)
+import requests
 
 st.set_page_config(page_title="Painel de Administração", layout="wide")
 st.title("🛡️ Painel de Controle")
+
+# URL BASE do Firebase
+BASE_URL = "https://grupoffkaraoke-default-rtdb.firebaseio.com"
 
 # --- LOGIN ---
 if "logado" not in st.session_state: st.session_state["logado"] = False
@@ -26,50 +23,33 @@ if st.button("🔄 Atualizar Fila"):
     st.rerun()
 
 try:
-    # Busca os dados do Supabase
-    response = supabase.table("prestadores").select("*").execute()
-    prestadores = response.data
+    # Busca os prestadores diretamente no Firebase
+    response = requests.get(f"{BASE_URL}/prestadores.json")
+    prestadores_data = response.json()
     
-    if prestadores:
-        # Cabeçalhos da tabela
-        header1, header2, header3, header4 = st.columns([2, 2, 1, 1])
+    if prestadores_data:
+        # Cabeçalhos
+        header1, header2, header3 = st.columns([3, 2, 1])
         header1.write("**Prestador**")
-        header2.write("**Ref.**")
-        header3.write("**Status**")
-        header4.write("**Ação**")
+        header2.write("**Telefone (ID)**")
+        header3.write("**Ação**")
 
-        # Loop pelos prestadores
-        for p in prestadores:
-            # Chave única para cada botão baseada no ID único do Supabase
-            p_id = p.get('id')
+        # Loop pelos prestadores do Firebase
+        # 'prestadores_data' vem como um dicionário {telefone: dados_do_prestador}
+        for tel, dados in prestadores_data.items():
+            col1, col2, col3 = st.columns([3, 2, 1])
             
-            col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
+            nome_display = dados.get('nome', 'Sem Nome')
             
-            # Formatação segura dos nomes (evita erro de NoneType)
-            nome = str(p.get('Nome') or p.get('nome') or "")
-            sobrenome = str(p.get('Sobrenome') or p.get('sobrenome') or "")
-            display_name = f"{nome} {sobrenome}".strip() or p.get('slug_unico') or "Sem Nome"
+            col1.write(f"👤 {nome_display}")
+            col2.write(f"📞 {tel}")
             
-            col1.write(f"**{display_name}**")
-            col2.write(str(p.get('referencia_pagamento') or "N/A"))
-            
-            status = p.get('status_pagamento', False)
-            
-            if status:
-                col3.write("✅ SIM")
-                col4.write("⏳ Em uso")
-            else:
-                col3.write("❌ NÃO")
-                # Botão com chave única absoluta
-                if col4.button("Pagar", key=f"btn_pagar_{p_id}"):
-                    # Atualiza o status no Supabase
-                    supabase.table("prestadores").update({
-                        "status_pagamento": True,
-                        "inicio_servico": datetime.now(timezone.utc).isoformat()
-                    }).eq("id", p_id).execute()
-                    # Recarrega a página para refletir a mudança
-                    st.rerun()
+            # Botão de Remover prestador (exemplo de ação)
+            if col3.button("🗑️", key=f"del_{tel}"):
+                requests.delete(f"{BASE_URL}/prestadores/{tel}.json")
+                st.rerun()
     else:
-        st.info("Nenhum prestador na fila.")
+        st.info("Nenhum prestador registado no Firebase.")
+        
 except Exception as e:
-    st.error(f"Erro ao carregar dados: {e}")
+    st.error(f"Erro ao conectar ao Firebase: {e}")
